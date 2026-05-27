@@ -46,12 +46,21 @@ def load_data():
 df = load_data()
 
 # -----------------------------
-# 컬럼 설정
+# 첫 번째 컬럼 (행정구 이름)
 # -----------------------------
 district_col = df.columns[0]
 
-# 연령 컬럼 추출
-age_columns = df.columns[3:]
+# -----------------------------
+# 연령 컬럼만 추출
+# -----------------------------
+age_columns = []
+
+for col in df.columns:
+
+    col_str = str(col)
+
+    if "세" in col_str:
+        age_columns.append(col)
 
 # -----------------------------
 # 행정구 선택
@@ -64,37 +73,44 @@ selected_district = st.selectbox(
 )
 
 # -----------------------------
-# 선택한 행정구 데이터
+# 선택 데이터
 # -----------------------------
 selected_row = df[df[district_col] == selected_district].iloc[0]
 
-age_population = []
+ages = []
+population = []
 
 for col in age_columns:
 
     try:
-        # 숫자만 추출
+        # 나이 숫자 추출
         match = re.search(r'\d+', str(col))
 
         if match:
 
             age = int(match.group())
 
-            value = str(selected_row[col]).replace(',', '')
-            pop = int(value)
+            value = str(selected_row[col])
 
-            age_population.append((age, pop))
+            # 쉼표 제거
+            value = value.replace(',', '')
+
+            # 숫자 변환
+            pop = int(float(value))
+
+            ages.append(age)
+            population.append(pop)
 
     except:
         pass
 
 # -----------------------------
-# 나이순 정렬
+# 정렬
 # -----------------------------
-age_population.sort(key=lambda x: x[0])
+sorted_data = sorted(zip(ages, population))
 
-ages = [x[0] for x in age_population]
-population = [x[1] for x in age_population]
+ages = [x[0] for x in sorted_data]
+population = [x[1] for x in sorted_data]
 
 # -----------------------------
 # 그래프
@@ -118,13 +134,13 @@ ax.set_title(
 ax.set_xlabel("나이", fontsize=14)
 ax.set_ylabel("인구수", fontsize=14)
 
-# x축 범위 고정
+# x축 범위
 ax.set_xlim(0, 100)
 
-# 10살 단위 눈금
+# x축 눈금
 ax.set_xticks(range(0, 101, 10))
 
-# 세로 구분선
+# 세로선
 ax.grid(
     axis='x',
     linestyle='--',
@@ -142,7 +158,7 @@ ax.grid(
 st.pyplot(fig)
 
 # -----------------------------
-# 데이터 표
+# 데이터 테이블
 # -----------------------------
 st.subheader("📋 연령별 인구 데이터")
 
