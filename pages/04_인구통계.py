@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import os
+import re
 
 # -----------------------------
 # 페이지 설정
@@ -16,7 +17,6 @@ st.set_page_config(
 # -----------------------------
 # 한글 폰트 설정
 # -----------------------------
-# 프로젝트 폴더 안에 NanumGothic.ttf 파일 필요
 font_path = "NanumGothic.ttf"
 
 if os.path.exists(font_path):
@@ -46,7 +46,7 @@ def load_data():
 df = load_data()
 
 # -----------------------------
-# 컬럼 확인
+# 컬럼 설정
 # -----------------------------
 district_col = df.columns[0]
 
@@ -64,27 +64,37 @@ selected_district = st.selectbox(
 )
 
 # -----------------------------
-# 선택 데이터
+# 선택한 행정구 데이터
 # -----------------------------
 selected_row = df[df[district_col] == selected_district].iloc[0]
 
-ages = []
-population = []
+age_population = []
 
 for col in age_columns:
 
     try:
-        age = ''.join(filter(str.isdigit, col))
+        # 숫자만 추출
+        match = re.search(r'\d+', str(col))
 
-        if age != '':
+        if match:
 
-            ages.append(int(age))
+            age = int(match.group())
 
             value = str(selected_row[col]).replace(',', '')
-            population.append(int(value))
+            pop = int(value)
+
+            age_population.append((age, pop))
 
     except:
         pass
+
+# -----------------------------
+# 나이순 정렬
+# -----------------------------
+age_population.sort(key=lambda x: x[0])
+
+ages = [x[0] for x in age_population]
+population = [x[1] for x in age_population]
 
 # -----------------------------
 # 그래프
@@ -108,7 +118,10 @@ ax.set_title(
 ax.set_xlabel("나이", fontsize=14)
 ax.set_ylabel("인구수", fontsize=14)
 
-# x축 10살 단위
+# x축 범위 고정
+ax.set_xlim(0, 100)
+
+# 10살 단위 눈금
 ax.set_xticks(range(0, 101, 10))
 
 # 세로 구분선
