@@ -46,20 +46,18 @@ def load_data():
 df = load_data()
 
 # -----------------------------
-# 첫 번째 컬럼 (행정구 이름)
+# 행정구 컬럼
 # -----------------------------
 district_col = df.columns[0]
 
 # -----------------------------
-# 연령 컬럼만 추출
+# 연령 컬럼 추출
 # -----------------------------
 age_columns = []
 
 for col in df.columns:
 
-    col_str = str(col)
-
-    if "세" in col_str:
+    if "세" in str(col):
         age_columns.append(col)
 
 # -----------------------------
@@ -83,19 +81,20 @@ population = []
 for col in age_columns:
 
     try:
-        # 나이 숫자 추출
-        match = re.search(r'\d+', str(col))
+        col_text = str(col)
 
-        if match:
+        # 마지막 숫자 찾기
+        matches = re.findall(r'(\d+)세', col_text)
 
-            age = int(match.group())
+        if matches:
+
+            age = int(matches[-1])
 
             value = str(selected_row[col])
 
             # 쉼표 제거
             value = value.replace(',', '')
 
-            # 숫자 변환
             pop = int(float(value))
 
             ages.append(age)
@@ -105,7 +104,7 @@ for col in age_columns:
         pass
 
 # -----------------------------
-# 정렬
+# 나이순 정렬
 # -----------------------------
 sorted_data = sorted(zip(ages, population))
 
@@ -140,7 +139,7 @@ ax.set_xlim(0, 100)
 # x축 눈금
 ax.set_xticks(range(0, 101, 10))
 
-# 세로선
+# 세로 구분선
 ax.grid(
     axis='x',
     linestyle='--',
@@ -158,7 +157,7 @@ ax.grid(
 st.pyplot(fig)
 
 # -----------------------------
-# 데이터 테이블
+# 데이터 표
 # -----------------------------
 st.subheader("📋 연령별 인구 데이터")
 
