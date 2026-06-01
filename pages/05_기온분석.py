@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# -----------------------------
+# ----------------------------------
 # 페이지 설정
-# -----------------------------
+# ----------------------------------
 st.set_page_config(
     page_title="날짜별 기온 분석",
     layout="wide"
@@ -12,38 +12,80 @@ st.set_page_config(
 
 st.title("🌡️ 날짜별 기온 분석")
 
-# -----------------------------
+# ----------------------------------
 # 데이터 불러오기
-# -----------------------------
+# ----------------------------------
 @st.cache_data
 def load_data():
+
+    # CSV 읽기
     try:
         df = pd.read_csv("seoul.csv", encoding="cp949")
     except:
-        df = pd.read_csv("seoul.csv", encoding="utf-8")
+        try:
+            df = pd.read_csv("seoul.csv", encoding="utf-8")
+        except:
+            df = pd.read_csv("seoul.csv", encoding="utf-8-sig")
 
-    df["날짜"] = pd.to_datetime(df["날짜"])
+    # 컬럼명 공백 제거
+    df.columns = df.columns.str.strip()
 
-    df["연도"] = df["날짜"].dt.year
-    df["월"] = df["날짜"].dt.month
-    df["일"] = df["날짜"].dt.day
+    # 날짜 컬럼 찾기
+    if "날짜" in df.columns:
+        date_col = "날짜"
+    elif "일시" in df.columns:
+        date_col = "일시"
+    else:
+        st.error(f"날짜 컬럼을 찾을 수 없습니다.\n현재 컬럼: {df.columns.tolist()}")
+        st.stop()
+
+    # 날짜 변환
+    df[date_col] = pd.to_datetime(
+        df[date_col],
+        errors="coerce"
+    )
+
+    # 날짜 변환 실패 행 제거
+    df = df.dropna(subset=[date_col])
+
+    # 연도/월/일 생성
+    df["연도"] = df[date_col].dt.year
+    df["월"] = df[date_col].dt.month
+    df["일"] = df[date_col].dt.day
 
     return df
 
 
 df = load_data()
 
-# -----------------------------
+# ----------------------------------
+# 기온 컬럼 찾기
+# ----------------------------------
+max_col = None
+min_col = None
+
+for col in df.columns:
+    if "최고기온" in col:
+        max_col = col
+    if "최저기온" in col:
+        min_col = col
+
+if max_col is None or min_col is None:
+    st.error("최고기온 또는 최저기온 컬럼을 찾을 수 없습니다.")
+    st.write(df.columns.tolist())
+    st.stop()
+
+# ----------------------------------
 # 월 선택
-# -----------------------------
+# ----------------------------------
 month = st.selectbox(
     "월 선택",
     sorted(df["월"].unique())
 )
 
-# -----------------------------
+# ----------------------------------
 # 일 선택
-# -----------------------------
+# ----------------------------------
 available_days = sorted(
     df[df["월"] == month]["일"].unique()
 )
@@ -53,9 +95,9 @@ day = st.selectbox(
     available_days
 )
 
-# -----------------------------
+# ----------------------------------
 # 데이터 필터링
-# -----------------------------
+# ----------------------------------
 filtered = df[
     (df["월"] == month) &
     (df["일"] == day)
@@ -64,23 +106,23 @@ filtered = df[
 filtered = filtered.sort_values("연도")
 
 filtered = filtered.dropna(
-    subset=["최고기온(℃)", "최저기온(℃)"]
+    subset=[max_col, min_col]
 )
 
 if filtered.empty:
-    st.warning("해당 날짜의 데이터가 없습니다.")
+    st.warning("선택한 날짜의 데이터가 없습니다.")
     st.stop()
 
-# -----------------------------
+# ----------------------------------
 # 그래프
-# -----------------------------
+# ----------------------------------
 fig = go.Figure()
 
 # 최고기온 (분홍색)
 fig.add_trace(
     go.Scatter(
         x=filtered["연도"],
-        y=filtered["최고기온(℃)"],
+        y=filtered[max_col],
         mode="lines+markers",
         name="최고기온",
         line=dict(
@@ -98,7 +140,7 @@ fig.add_trace(
 fig.add_trace(
     go.Scatter(
         x=filtered["연도"],
-        y=filtered["최저기온(℃)"],
+        y=filtered[min_col],
         mode="lines+markers",
         name="최저기온",
         line=dict(
@@ -126,44 +168,40 @@ st.plotly_chart(
     use_container_width=True
 )
 
-# -----------------------------
-# 통계 정보
-# -----------------------------
+# ----------------------------------
+# 통계
+# ----------------------------------
 st.subheader("📊 통계 정보")
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-with col1:
-    st.metric(
-        "최고기온 평균",
-        f"{filtered['최고기온(℃)'].mean():.1f}℃"
-    )
+c1.metric(
+    "최고기온 평균",
+    f"{filtered[max_col].mean():.1f}℃"
+)
 
-with col2:
-    st.metric(
-        "최고기온 최대",
-        f"{filtered['최고기온(℃)'].max():.1f}℃"
-    )
+c2.metric(
+    "최고기온 최대",
+    f"{filtered[max_col].max():.1f}℃"
+)
 
-with col3:
-    st.metric(
-        "최저기온 평균",
-        f"{filtered['최저기온(℃)'].mean():.1f}℃"
-    )
+c3.metric(
+    "최저기온 평균",
+    f"{filtered[min_col].mean():.1f}℃"
+)
 
-with col4:
-    st.metric(
-        "최저기온 최소",
-        f"{filtered['최저기온(℃)'].min():.1f}℃"
-    )
+c4.metric(
+    "최저기온 최소",
+    f"{filtered[min_col].min():.1f}℃"
+)
 
-# -----------------------------
+# ----------------------------------
 # 데이터 보기
-# -----------------------------
+# ----------------------------------
 with st.expander("📋 데이터 보기"):
     st.dataframe(
         filtered[
-            ["연도", "최고기온(℃)", "최저기온(℃)"]
+            ["연도", max_col, min_col]
         ].reset_index(drop=True),
         use_container_width=True
     )
